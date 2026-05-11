@@ -110,3 +110,34 @@ class MADDPG:
             "target_critics": [agent.target_critic.state_dict() for agent in self.agents],
         }
         torch.save(payload, path)
+
+    def load(self, path: str | Path) -> None:
+        payload = torch.load(path, map_location=self.device, weights_only=True)
+        if not isinstance(payload, dict):
+            raise ValueError("MADDPG checkpoint must be a dictionary")
+        self._validate_checkpoint_list(payload, "actors")
+        self._validate_checkpoint_list(payload, "critics")
+        self._validate_checkpoint_list(payload, "target_actors")
+        self._validate_checkpoint_list(payload, "target_critics")
+
+        for agent, actor, critic, target_actor, target_critic in zip(
+            self.agents,
+            payload["actors"],
+            payload["critics"],
+            payload["target_actors"],
+            payload["target_critics"],
+        ):
+            agent.actor.load_state_dict(actor)
+            agent.critic.load_state_dict(critic)
+            agent.target_actor.load_state_dict(target_actor)
+            agent.target_critic.load_state_dict(target_critic)
+            agent.target_actor.eval()
+            agent.target_critic.eval()
+
+    def _validate_checkpoint_list(self, payload: dict, key: str) -> None:
+        if key not in payload:
+            raise ValueError(f"MADDPG checkpoint missing {key}")
+        if len(payload[key]) != len(self.agents):
+            raise ValueError(
+                f"MADDPG checkpoint {key} has {len(payload[key])} entries; expected {len(self.agents)}"
+            )

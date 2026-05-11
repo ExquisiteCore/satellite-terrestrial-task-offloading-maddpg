@@ -89,3 +89,15 @@ class DQNAgent:
             },
             path,
         )
+
+    def load(self, path: str | Path) -> None:
+        payload = torch.load(path, map_location=self.device, weights_only=True)
+        if not isinstance(payload, dict):
+            raise ValueError("DQN checkpoint must be a dictionary")
+        required_keys = {"network", "target_network"}
+        missing = sorted(required_keys.difference(payload))
+        if missing:
+            raise ValueError(f"DQN checkpoint missing keys: {', '.join(missing)}")
+        self.network.load_state_dict(payload["network"])
+        self.target_network.load_state_dict(payload["target_network"])
+        self.target_network.eval()

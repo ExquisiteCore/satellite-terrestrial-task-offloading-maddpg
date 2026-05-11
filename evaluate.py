@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable
+from pathlib import Path
 
 import numpy as np
 
 from algorithms.baselines import all_local_policy, random_policy
 from algorithms.dqn import DQNAgent
 from algorithms.maddpg import MADDPG
-from config import CSV_DIR, EnvConfig
+from config import CSV_DIR, MODELS_DIR, EnvConfig
 from envs.offloading_env import OffloadingEnv
 from utils.logger import ensure_result_dirs, write_rows_csv
 from utils.seed import set_seed
@@ -48,7 +49,30 @@ def run_policy(name: str, env: OffloadingEnv, policy: Policy, episodes: int) -> 
     }
 
 
-def evaluate(episodes: int) -> list[dict]:
+def maybe_load_model(model, path: str | Path, load_models: bool) -> dict[str, str | bool]:
+    if not load_models:
+        return {"checkpoint_loaded": False, "checkpoint_status": "not_requested", "checkpoint_path": ""}
+    checkpoint_path = Path(path)
+    if not checkpoint_path.exists():
+        return {
+            "checkpoint_loaded": False,
+            "checkpoint_status": "missing",
+            "checkpoint_path": str(checkpoint_path),
+        }
+    model.load(checkpoint_path)
+    return {
+        "checkpoint_loaded": True,
+        "checkpoint_status": "loaded",
+        "checkpoint_path": str(checkpoint_path),
+    }
+
+
+def evaluate(
+    episodes: int,
+    load_models: bool = True,
+    dqn_checkpoint: str | Path = MODELS_DIR / "dqn.pt",
+    maddpg_checkpoint: str | Path = MODELS_DIR / "maddpg_best.pt",
+) -> list[dict]:
     config = EnvConfig(seed=99)
     set_seed(config.seed)
     ensure_result_dirs()
@@ -56,6 +80,8 @@ def evaluate(episodes: int) -> list[dict]:
     env = OffloadingEnv(config)
     maddpg = MADDPG(num_users=env.num_users, obs_dim=env.obs_dim, action_dim=env.action_dim, seed=config.seed)
     dqn = DQNAgent(obs_dim=env.obs_dim, seed=config.seed)
+    dqn_status = maybe_load_model(dqn, dqn_checkpoint, load_models)
+    maddpg_status = maybe_load_model(maddpg, maddpg_checkpoint, load_models)
 
     rows = [
         run_policy("All Local", env, lambda obs, episode: all_local_policy(env.num_users), episodes),
@@ -63,6 +89,15 @@ def evaluate(episodes: int) -> list[dict]:
         run_policy("DQN", env, lambda obs, episode: dqn.act(obs, epsilon=0.0)[0], episodes),
         run_policy("MADDPG", env, lambda obs, episode: maddpg.act(obs, noise_std=0.0), episodes),
     ]
+    for row in rows:
+        status = {
+            "DQN": dqn_status,
+            "MADDPG": maddpg_status,
+        }.get(
+            row["algorithm"],
+            {"checkpoint_loaded": False, "checkpoint_status": "not_applicable", "checkpoint_path": ""},
+        )
+        row.update(status)
     write_rows_csv(CSV_DIR / "evaluation_summary.csv", rows)
     return rows
 
@@ -70,8 +105,16 @@ def evaluate(episodes: int) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--episodes", type=int, default=10)
+    parser.add_argument("--no-load-models", action="store_true")
+    parser.add_argument("--dqn-checkpoint", type=Path, default=MODELS_DIR / "dqn.pt")
+    parser.add_argument("--maddpg-checkpoint", type=Path, default=MODELS_DIR / "maddpg_best.pt")
     args = parser.parse_args()
-    evaluate(args.episodes)
+    evaluate(
+        args.episodes,
+        load_models=not args.no_load_models,
+        dqn_checkpoint=args.dqn_checkpoint,
+        maddpg_checkpoint=args.maddpg_checkpoint,
+    )
 
 
 if __name__ == "__main__":
