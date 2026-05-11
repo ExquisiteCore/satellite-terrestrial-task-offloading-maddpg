@@ -69,13 +69,14 @@ class OffloadingEnv:
             raise ValueError(f"expected {self.num_users} user actions, got {split.shape[0]}")
 
         metrics = self._compute_metrics(split)
+        deadline_threshold = float(np.mean(self.state["deadline_s"]))
         self.step_count += 1
         done = self.step_count >= self.config.episode_steps
         self._advance_state()
 
         total_delay_cost = float(np.mean(metrics["delay"]))
         total_energy_cost = float(np.mean(metrics["energy"]))
-        deadline_violation = float(total_delay_cost > float(np.mean(self.state["deadline_s"])))
+        deadline_violation = float(total_delay_cost > deadline_threshold)
         team_reward = -(
             self.config.reward_delay_weight * total_delay_cost
             + self.config.reward_energy_weight * total_energy_cost
@@ -100,14 +101,16 @@ class OffloadingEnv:
 
     def _sample_state(self) -> None:
         cfg = self.config
+        user_xy = self.rng.uniform(-cfg.area_size_m / 2.0, cfg.area_size_m / 2.0, size=(cfg.num_users, 2))
         self.state = {
+            "user_xy_m": user_xy,
+            "sat_position_m": np.array([cfg.sat_initial_x_m, 0.0, cfg.sat_altitude_m], dtype=np.float64),
             "task_data_mb": self.rng.uniform(cfg.task_data_min_mb, cfg.task_data_max_mb, cfg.num_users),
             "cycles_per_bit": self.rng.uniform(cfg.task_cycles_min, cfg.task_cycles_max, cfg.num_users),
             "deadline_s": self.rng.uniform(cfg.deadline_min_s, cfg.deadline_max_s, cfg.num_users),
             "local_freq_ghz": self.rng.uniform(cfg.local_freq_min_ghz, cfg.local_freq_max_ghz, cfg.num_users),
-            "bs_distance_m": self.rng.uniform(cfg.bs_distance_min_m, cfg.bs_distance_max_m, cfg.num_users),
-            "sat_distance_m": self.rng.uniform(cfg.sat_distance_min_m, cfg.sat_distance_max_m, cfg.num_users),
         }
+        self._update_distances()
         self._update_rates()
 
     def _advance_state(self) -> None:
@@ -116,24 +119,33 @@ class OffloadingEnv:
         self.state["cycles_per_bit"] = self.rng.uniform(cfg.task_cycles_min, cfg.task_cycles_max, cfg.num_users)
         self.state["deadline_s"] = self.rng.uniform(cfg.deadline_min_s, cfg.deadline_max_s, cfg.num_users)
 
-        bs_delta = self.rng.normal(0.0, 35.0, cfg.num_users)
-        sat_delta = self.rng.normal(0.0, 25_000.0, cfg.num_users)
-        self.state["bs_distance_m"] = np.clip(
-            self.state["bs_distance_m"] + bs_delta,
-            cfg.bs_distance_min_m,
-            cfg.bs_distance_max_m,
+        user_delta = self.rng.normal(0.0, 5.0, size=(cfg.num_users, 2))
+        self.state["user_xy_m"] = np.clip(
+            self.state["user_xy_m"] + user_delta,
+            -cfg.area_size_m / 2.0,
+            cfg.area_size_m / 2.0,
         )
-        self.state["sat_distance_m"] = np.clip(
-            self.state["sat_distance_m"] + sat_delta,
-            cfg.sat_distance_min_m,
-            cfg.sat_distance_max_m,
-        )
+        self.state["sat_position_m"][0] += cfg.sat_velocity_mps * cfg.slot_duration_s
+        self._update_distances()
         self._update_rates()
+
+    def _update_distances(self) -> None:
+        cfg = self.config
+        user_xy = self.state["user_xy_m"]
+        bs_xy = np.array([cfg.bs_position_x_m, cfg.bs_position_y_m], dtype=np.float64)
+        bs_distance = np.linalg.norm(user_xy - bs_xy, axis=1)
+        sat_ground_xy = self.state["sat_position_m"][:2]
+        horizontal_distance = np.linalg.norm(user_xy - sat_ground_xy, axis=1)
+        sat_distance = np.sqrt(np.square(horizontal_distance) + cfg.sat_altitude_m**2)
+        self.state["bs_distance_m"] = np.clip(bs_distance, cfg.bs_distance_min_m, cfg.bs_distance_max_m)
+        self.state["sat_distance_m"] = np.clip(sat_distance, cfg.sat_distance_min_m, cfg.sat_distance_max_m)
 
     def _update_rates(self) -> None:
         cfg = self.config
-        bs_gain = 1.0 / np.square(self.state["bs_distance_m"])
-        sat_gain = 1.0 / np.square(self.state["sat_distance_m"])
+        bs_gain = cfg.reference_channel_gain / np.power(self.state["bs_distance_m"], cfg.bs_path_loss_exponent)
+        sat_gain = cfg.reference_channel_gain / np.power(self.state["sat_distance_m"], cfg.sat_path_loss_exponent)
+        self.state["bs_channel_gain"] = bs_gain
+        self.state["sat_channel_gain"] = sat_gain
         bs_snr = cfg.tx_power_w * bs_gain / cfg.noise_power_w
         sat_snr = cfg.tx_power_w * sat_gain / cfg.noise_power_w
         self.state["bs_rate_bps"] = np.maximum(cfg.bandwidth_hz * np.log2(1.0 + bs_snr), cfg.min_rate_bps)
@@ -166,14 +178,27 @@ class OffloadingEnv:
         if sat_total > 0.0:
             sat_freq = (sat_cycles / sat_total) * cfg.sat_freq_ghz * 1.0e9
         sat_tx_delay = split[:, 2] * data_bits / self.state["sat_rate_bps"]
+        sat_propagation_delay = np.where(
+            split[:, 2] > 0.0,
+            2.0 * self.state["sat_distance_m"] / cfg.light_speed_mps,
+            0.0,
+        )
         sat_compute_delay = np.divide(sat_cycles, sat_freq, out=np.zeros_like(sat_cycles), where=sat_freq > 0.0)
-        sat_delay = sat_tx_delay + sat_compute_delay
+        sat_delay = sat_tx_delay + sat_propagation_delay + sat_compute_delay
         sat_energy = cfg.transmit_energy_coeff * cfg.tx_power_w * sat_tx_delay
 
         delay = np.maximum.reduce([local_delay, bs_delay, sat_delay])
         energy = local_energy + bs_energy + sat_energy
         failed = (delay > self.state["deadline_s"]).astype(np.float64)
-        return {"delay": delay, "energy": energy, "failed": failed}
+        return {
+            "delay": delay,
+            "energy": energy,
+            "failed": failed,
+            "local_delay": local_delay,
+            "bs_delay": bs_delay,
+            "sat_delay": sat_delay,
+            "sat_propagation_delay": sat_propagation_delay,
+        }
 
     def _get_obs(self) -> np.ndarray:
         cfg = self.config

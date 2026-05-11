@@ -87,3 +87,48 @@ def test_deadline_violation_penalty_reduces_team_reward():
     assert loose_info["deadline_violation"] == 0.0
     assert strict_info["deadline_violation"] == 1.0
     assert float(strict_rewards[0]) < float(loose_rewards[0])
+
+
+def test_deadline_violation_uses_current_step_deadline_before_state_advances():
+    env = OffloadingEnv(EnvConfig(num_users=2, seed=29, deadline_min_s=1000.0, deadline_max_s=1000.0))
+    env.reset()
+    actions = env.all_local_actions()
+    current_metrics = env._compute_metrics(actions)
+    current_threshold = float(np.mean(env.state["deadline_s"]))
+    expected_violation = float(float(np.mean(current_metrics["delay"])) > current_threshold)
+
+    def advance_to_strict_next_state():
+        env.state["deadline_s"] = np.zeros(env.num_users)
+
+    env._advance_state = advance_to_strict_next_state
+    _, _, _, info = env.step(actions)
+
+    assert info["deadline_violation"] == expected_violation
+
+
+def test_satellite_position_distance_and_channel_change_over_steps():
+    env = OffloadingEnv(EnvConfig(num_users=3, seed=19))
+    env.reset()
+    sat_x_before = env.state["sat_position_m"][0]
+    sat_distance_before = env.state["sat_distance_m"].copy()
+    sat_gain_before = env.state["sat_channel_gain"].copy()
+
+    env.step(env.sample_random_actions())
+
+    assert env.state["sat_position_m"][0] != sat_x_before
+    assert not np.allclose(env.state["sat_distance_m"], sat_distance_before)
+    assert not np.allclose(env.state["sat_channel_gain"], sat_gain_before, rtol=1e-6, atol=0.0)
+    assert np.all(env.state["sat_rate_bps"] >= env.config.min_rate_bps)
+
+
+def test_satellite_delay_includes_propagation_delay():
+    config = EnvConfig(num_users=2, seed=23)
+    env = OffloadingEnv(config)
+    env.reset()
+    actions = np.tile(np.array([[0.0, 0.0, 1.0]]), (2, 1))
+    metrics = env._compute_metrics(actions)
+    propagation_delay = 2.0 * env.state["sat_distance_m"] / config.light_speed_mps
+
+    assert "sat_propagation_delay" in metrics
+    np.testing.assert_allclose(metrics["sat_propagation_delay"], propagation_delay)
+    assert np.all(metrics["sat_delay"] >= propagation_delay)

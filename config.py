@@ -24,6 +24,17 @@ class EnvConfig:
     bs_distance_max_m: float = 1000.0
     sat_distance_min_m: float = 500_000.0
     sat_distance_max_m: float = 1_200_000.0
+    area_size_m: float = 2_000.0
+    bs_position_x_m: float = 0.0
+    bs_position_y_m: float = 0.0
+    sat_altitude_m: float = 600_000.0
+    sat_initial_x_m: float = -1_000_000.0
+    sat_velocity_mps: float = 7_500.0
+    slot_duration_s: float = 1.0
+    reference_channel_gain: float = 1e-3
+    bs_path_loss_exponent: float = 2.2
+    sat_path_loss_exponent: float = 2.0
+    light_speed_mps: float = 3.0e8
 
     bandwidth_hz: float = 10e6
     noise_power_w: float = 1e-13
