@@ -140,10 +140,71 @@ def plot_offload_ratio(eval_df: pd.DataFrame) -> None:
     plt.close(fig)
 
 
+def plot_task_completion_summary(eval_df: pd.DataFrame) -> None:
+    fig = plt.figure(figsize=(12, 7), facecolor="#f7f9fc")
+    fig.add_artist(Rectangle((0, 0.9), 1, 0.1, transform=fig.transFigure, color=TITLE_COLOR, zorder=-1))
+    fig.text(0.035, 0.94, "能耗与任务完成情况", color="white", fontsize=17, weight="bold", va="center")
+    fig.text(0.035, 0.855, "综合展示不同策略下的能耗、完成任务数、未完成任务数和收益用户比例", color="#64748b", fontsize=10)
+    axes = [
+        fig.add_subplot(2, 2, 1),
+        fig.add_subplot(2, 2, 2),
+        fig.add_subplot(2, 2, 3),
+        fig.add_subplot(2, 2, 4),
+    ]
+    fig.subplots_adjust(top=0.8, left=0.08, right=0.96, bottom=0.11, hspace=0.42, wspace=0.28)
+    labels = localized_algorithms(eval_df)
+    specs = [
+        ("avg_energy", "平均能耗", "能耗 / J", "{:.1f}"),
+        ("avg_completed_tasks", "平均完成任务数", "任务数", "{:.1f}"),
+        ("avg_unfinished_tasks", "平均未完成任务数", "任务数", "{:.1f}"),
+        ("benefit_user_ratio", "收益用户比例", "比例", "{:.1%}"),
+    ]
+    for ax, (column, title, ylabel, fmt) in zip(axes, specs):
+        ax.set_facecolor("white")
+        ax.grid(True, axis="y", color=GRID_COLOR, linewidth=0.7, alpha=0.75)
+        ax.set_axisbelow(True)
+        bars = ax.bar(labels, eval_df[column], color=BAR_COLOR, width=0.55)
+        ax.set_title(title, fontsize=12, weight="bold", color=TEXT_COLOR)
+        ax.set_ylabel(ylabel, fontsize=10, color=TEXT_COLOR)
+        ax.tick_params(axis="x", labelrotation=18, labelsize=9)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.margins(y=0.18)
+        add_bar_labels(ax, bars, fmt=fmt)
+    fig.savefig(FIGURES_DIR / "task_completion_summary.png", dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
+def plot_sensitivity(sensitivity_df: pd.DataFrame) -> None:
+    fig, ax = begin_figure("任务负载敏感性分析", "不同任务负载下各策略的平均完成任务数变化")
+    color_map = {
+        "All Local": "#6b7280",
+        "Random": SECONDARY_COLOR,
+        "DQN": TERTIARY_COLOR,
+        "MADDPG": "#d14b4b",
+    }
+    for algorithm, group in sensitivity_df.groupby("algorithm"):
+        group = group.sort_values("task_load_factor")
+        ax.plot(
+            group["task_load_factor"],
+            group["avg_completed_tasks"],
+            marker="o",
+            linewidth=2.0,
+            color=color_map.get(algorithm, BAR_COLOR),
+            label=ALGORITHM_LABELS.get(algorithm, algorithm),
+        )
+    ax.set_xlabel("任务负载系数", fontsize=11, color=TEXT_COLOR)
+    ax.set_ylabel("平均完成任务数", fontsize=11, color=TEXT_COLOR)
+    ax.legend(frameon=False, fontsize=10)
+    fig.savefig(FIGURES_DIR / "task_load_sensitivity.png", dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
 def plot() -> None:
     ensure_result_dirs()
     train_path = CSV_DIR / "maddpg_train_log.csv"
     eval_path = CSV_DIR / "evaluation_summary.csv"
+    sensitivity_path = CSV_DIR / "sensitivity_summary.csv"
 
     if train_path.exists():
         train_df = pd.read_csv(train_path)
@@ -154,7 +215,24 @@ def plot() -> None:
         save_bar(eval_df, "avg_delay", "平均时延对比", "平均时延 / s", "avg_delay_comparison.png")
         save_bar(eval_df, "avg_energy", "平均能耗对比", "平均能耗 / J", "avg_energy_comparison.png")
         save_bar(eval_df, "success_rate", "任务完成率对比", "任务完成率", "success_rate_comparison.png", fmt="{:.2%}")
+        if "avg_reward" in eval_df.columns:
+            save_bar(eval_df, "avg_reward", "平均奖励对比", "平均奖励", "avg_reward_comparison.png")
+        if {"avg_completed_tasks", "avg_unfinished_tasks", "benefit_user_ratio"}.issubset(eval_df.columns):
+            save_bar(
+                eval_df,
+                "benefit_user_ratio",
+                "收益用户比例对比",
+                "收益用户比例",
+                "benefit_user_ratio_comparison.png",
+                fmt="{:.2%}",
+            )
+            plot_task_completion_summary(eval_df)
         plot_offload_ratio(eval_df)
+
+    if sensitivity_path.exists():
+        sensitivity_df = pd.read_csv(sensitivity_path)
+        if {"task_load_factor", "algorithm", "avg_completed_tasks"}.issubset(sensitivity_df.columns):
+            plot_sensitivity(sensitivity_df)
 
 
 def main() -> None:
