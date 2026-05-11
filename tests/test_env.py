@@ -57,3 +57,33 @@ def test_environment_exposes_proposal_compatible_action_helpers():
     assert np.all(random_actions >= 0.0)
     np.testing.assert_allclose(random_actions.sum(axis=1), np.ones(3), atol=1e-6)
     np.testing.assert_allclose(local_actions, np.tile(np.array([[1.0, 0.0, 0.0]]), (3, 1)))
+
+
+def test_rewards_use_proposal_aligned_team_cost():
+    config = EnvConfig(num_users=3, seed=13)
+    env = OffloadingEnv(config)
+    env.reset()
+
+    _, rewards, _, info = env.step(env.all_local_actions())
+
+    assert rewards.shape == (3,)
+    np.testing.assert_allclose(rewards, np.full(3, info["team_reward"], dtype=np.float32))
+    assert info["team_reward"] == info["avg_reward"]
+    assert info["total_delay_cost"] >= 0.0
+    assert info["total_energy_cost"] >= 0.0
+    assert info["deadline_violation"] in {0.0, 1.0}
+
+
+def test_deadline_violation_penalty_reduces_team_reward():
+    loose = OffloadingEnv(EnvConfig(num_users=2, seed=17, deadline_min_s=1000.0, deadline_max_s=1000.0))
+    strict = OffloadingEnv(EnvConfig(num_users=2, seed=17, deadline_min_s=0.001, deadline_max_s=0.001))
+
+    loose.reset()
+    strict.reset()
+    actions = loose.all_local_actions()
+    _, loose_rewards, _, loose_info = loose.step(actions)
+    _, strict_rewards, _, strict_info = strict.step(actions)
+
+    assert loose_info["deadline_violation"] == 0.0
+    assert strict_info["deadline_violation"] == 1.0
+    assert float(strict_rewards[0]) < float(loose_rewards[0])

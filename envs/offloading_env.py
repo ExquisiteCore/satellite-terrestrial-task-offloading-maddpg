@@ -73,21 +73,30 @@ class OffloadingEnv:
         done = self.step_count >= self.config.episode_steps
         self._advance_state()
 
-        rewards = -(
-            self.config.reward_delay_weight * metrics["delay"]
-            + self.config.reward_energy_weight * metrics["energy"]
-            + self.config.deadline_penalty * metrics["failed"]
+        total_delay_cost = float(np.mean(metrics["delay"]))
+        total_energy_cost = float(np.mean(metrics["energy"]))
+        deadline_violation = float(total_delay_cost > float(np.mean(self.state["deadline_s"])))
+        team_reward = -(
+            self.config.reward_delay_weight * total_delay_cost
+            + self.config.reward_energy_weight * total_energy_cost
+            + self.config.deadline_penalty * deadline_violation
         )
+        rewards = np.full(self.num_users, team_reward, dtype=np.float32)
         info = {
             "avg_delay": float(np.mean(metrics["delay"])),
             "avg_energy": float(np.mean(metrics["energy"])),
+            "avg_reward": team_reward,
+            "team_reward": team_reward,
+            "total_delay_cost": total_delay_cost,
+            "total_energy_cost": total_energy_cost,
+            "deadline_violation": deadline_violation,
             "success_rate": float(np.mean(1.0 - metrics["failed"])),
             "avg_local_ratio": float(np.mean(split[:, 0])),
             "avg_bs_ratio": float(np.mean(split[:, 1])),
             "avg_sat_ratio": float(np.mean(split[:, 2])),
             "config": asdict(self.config),
         }
-        return self._get_obs(), rewards.astype(np.float32), done, info
+        return self._get_obs(), rewards, done, info
 
     def _sample_state(self) -> None:
         cfg = self.config
