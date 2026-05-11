@@ -52,6 +52,14 @@ class OffloadingEnv:
         self._sample_state()
         return self._get_obs()
 
+    def sample_random_actions(self) -> np.ndarray:
+        return self.rng.dirichlet(alpha=np.ones(self.action_dim), size=self.num_users).astype(np.float32)
+
+    def all_local_actions(self) -> np.ndarray:
+        actions = np.zeros((self.num_users, self.action_dim), dtype=np.float32)
+        actions[:, 0] = 1.0
+        return actions
+
     def step(self, actions: np.ndarray) -> tuple[np.ndarray, np.ndarray, bool, dict[str, Any]]:
         if not self.state:
             self.reset()
@@ -175,3 +183,27 @@ class OffloadingEnv:
             ]
         )
         return np.clip(obs, 0.0, 1.0).astype(np.float32)
+
+
+StarGroundEnv = OffloadingEnv
+
+
+def _demo_step() -> None:
+    env = OffloadingEnv()
+    obs = env.reset()
+    next_obs, rewards, done, info = env.step(env.sample_random_actions())
+    print(
+        {
+            "obs_shape": tuple(obs.shape),
+            "next_obs_shape": tuple(next_obs.shape),
+            "reward_mean": float(np.mean(rewards)),
+            "done": done,
+            "avg_delay": info["avg_delay"],
+            "avg_energy": info["avg_energy"],
+            "success_rate": info["success_rate"],
+        }
+    )
+
+
+if __name__ == "__main__":
+    _demo_step()

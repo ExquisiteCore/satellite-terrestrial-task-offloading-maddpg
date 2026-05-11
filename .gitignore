@@ -24,6 +24,7 @@ results/
 
 # Local document/source materials
 docs/
+*_unpacked/
 *.doc
 *.docx
 *.pdf

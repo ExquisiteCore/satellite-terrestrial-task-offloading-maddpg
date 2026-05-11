@@ -1,7 +1,7 @@
 import numpy as np
 
 from config import EnvConfig
-from envs.offloading_env import OffloadingEnv, normalize_actions
+from envs.offloading_env import OffloadingEnv, StarGroundEnv, normalize_actions
 
 
 def test_normalize_actions_returns_valid_simplex_rows():
@@ -42,3 +42,18 @@ def test_environment_done_after_episode_steps():
 
     assert done_1 is False
     assert done_2 is True
+
+
+def test_environment_exposes_proposal_compatible_action_helpers():
+    config = EnvConfig(num_users=3, seed=11)
+    env = OffloadingEnv(config)
+
+    random_actions = env.sample_random_actions()
+    local_actions = env.all_local_actions()
+
+    assert StarGroundEnv is OffloadingEnv
+    assert random_actions.shape == (3, env.action_dim)
+    assert local_actions.shape == (3, env.action_dim)
+    assert np.all(random_actions >= 0.0)
+    np.testing.assert_allclose(random_actions.sum(axis=1), np.ones(3), atol=1e-6)
+    np.testing.assert_allclose(local_actions, np.tile(np.array([[1.0, 0.0, 0.0]]), (3, 1)))
