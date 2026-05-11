@@ -35,6 +35,9 @@ class DQNReplayBuffer:
         self.position = (self.position + 1) % self.capacity
         self.size = min(self.size + 1, self.capacity)
 
+    def __len__(self) -> int:
+        return self.size
+
     def sample(self, batch_size: int) -> DQNBatch:
         if self.size < batch_size:
             raise ValueError(f"cannot sample {batch_size} transitions from buffer of size {self.size}")
