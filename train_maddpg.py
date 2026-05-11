@@ -5,6 +5,7 @@ import argparse
 from config import CSV_DIR, MODELS_DIR, EnvConfig, TrainConfig
 from envs.offloading_env import OffloadingEnv
 from algorithms.maddpg import MADDPG
+from algorithms.maddpg.replay_buffer import MultiAgentReplayBuffer
 from utils.logger import ensure_result_dirs, write_rows_csv
 from utils.seed import set_seed
 
@@ -22,6 +23,15 @@ def train(episodes: int) -> list[dict]:
         action_dim=env.action_dim,
         hidden_dim=train_config.hidden_dim,
         seed=env_config.seed,
+        actor_lr=train_config.actor_lr,
+        critic_lr=train_config.critic_lr,
+    )
+    buffer = MultiAgentReplayBuffer(
+        capacity=train_config.buffer_capacity,
+        num_users=env.num_users,
+        obs_dim=env.obs_dim,
+        action_dim=env.action_dim,
+        seed=env_config.seed,
     )
 
     rows: list[dict] = []
@@ -31,9 +41,22 @@ def train(episodes: int) -> list[dict]:
         done = False
         total_reward = 0.0
         infos = []
+        actor_losses: list[float] = []
+        critic_losses: list[float] = []
         while not done:
             actions = maddpg.act(obs, noise_std=train_config.exploration_noise)
-            obs, rewards, done, info = env.step(actions)
+            current_obs = obs
+            next_obs, rewards, done, info = env.step(actions)
+            buffer.add(current_obs, actions, rewards, next_obs, done)
+            if len(buffer) >= train_config.batch_size:
+                metrics = maddpg.update(
+                    buffer.sample(train_config.batch_size),
+                    gamma=train_config.gamma,
+                    tau=train_config.tau,
+                )
+                actor_losses.append(metrics["actor_loss"])
+                critic_losses.append(metrics["critic_loss"])
+            obs = next_obs
             total_reward += float(rewards.mean())
             infos.append(info)
 
@@ -41,6 +64,10 @@ def train(episodes: int) -> list[dict]:
         row = {
             "episode": episode,
             "avg_reward": avg_reward,
+            "avg_actor_loss": sum(actor_losses) / len(actor_losses) if actor_losses else 0.0,
+            "avg_critic_loss": sum(critic_losses) / len(critic_losses) if critic_losses else 0.0,
+            "num_updates": len(actor_losses),
+            "buffer_size": len(buffer),
             "avg_delay": sum(item["avg_delay"] for item in infos) / len(infos),
             "avg_energy": sum(item["avg_energy"] for item in infos) / len(infos),
             "success_rate": sum(item["success_rate"] for item in infos) / len(infos),
