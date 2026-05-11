@@ -12,8 +12,8 @@ class EnvConfig:
     task_data_max_mb: float = 5.0
     task_cycles_min: float = 500.0
     task_cycles_max: float = 1500.0
-    deadline_min_s: float = 0.5
-    deadline_max_s: float = 2.0
+    deadline_min_s: float = 5.0
+    deadline_max_s: float = 20.0
 
     local_freq_min_ghz: float = 0.8
     local_freq_max_ghz: float = 1.5

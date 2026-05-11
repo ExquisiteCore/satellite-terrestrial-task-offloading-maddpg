@@ -43,6 +43,13 @@ results/figures/success_rate_comparison.png
 results/figures/offload_ratio_maddpg.png
 ```
 
+## Default Simulation Parameters
+
+The default task deadlines are sampled from 5-20 seconds. This keeps the task
+model strict enough for failed users to appear, while avoiding all-zero success
+rates in short default evaluations and preserving visible differences between
+local-only and offloading-capable policies.
+
 ## Scope
 
 The model intentionally uses one base station MEC server, one LEO satellite MEC
