@@ -1,0 +1,39 @@
+# Local Python environments
+.venv/
+venv/
+env/
+
+# Python caches and test caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated experiment outputs
+results/
+*.pt
+*.pth
+*.onnx
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.csv
+
+# Local document/source materials
+docs/
+*.doc
+*.docx
+*.pdf
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+DESIGN_SPEC_*.md
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

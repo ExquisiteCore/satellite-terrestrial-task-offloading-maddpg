@@ -1,0 +1,16 @@
+[project]
+name = "satellite-terrestrial-task-offloading-maddpg"
+version = "0.1.0"
+description = "MADDPG simulation for satellite-terrestrial collaborative task offloading."
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pytest>=8.0",
+    "torch>=2.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

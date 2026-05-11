@@ -1,0 +1,56 @@
+from dataclasses import dataclass
+from pathlib import Path
+
+
+@dataclass(frozen=True)
+class EnvConfig:
+    num_users: int = 6
+    episode_steps: int = 50
+    seed: int = 42
+
+    task_data_min_mb: float = 0.5
+    task_data_max_mb: float = 5.0
+    task_cycles_min: float = 500.0
+    task_cycles_max: float = 1500.0
+    deadline_min_s: float = 0.5
+    deadline_max_s: float = 2.0
+
+    local_freq_min_ghz: float = 0.8
+    local_freq_max_ghz: float = 1.5
+    bs_freq_ghz: float = 12.0
+    sat_freq_ghz: float = 8.0
+
+    bs_distance_min_m: float = 100.0
+    bs_distance_max_m: float = 1000.0
+    sat_distance_min_m: float = 500_000.0
+    sat_distance_max_m: float = 1_200_000.0
+
+    bandwidth_hz: float = 10e6
+    noise_power_w: float = 1e-13
+    tx_power_w: float = 0.5
+    local_energy_coeff: float = 1e-27
+    transmit_energy_coeff: float = 1.0
+    min_rate_bps: float = 1e5
+
+    reward_delay_weight: float = 0.7
+    reward_energy_weight: float = 0.3
+    deadline_penalty: float = 2.0
+
+
+@dataclass(frozen=True)
+class TrainConfig:
+    episodes: int = 100
+    batch_size: int = 64
+    gamma: float = 0.95
+    tau: float = 0.01
+    actor_lr: float = 1e-3
+    critic_lr: float = 1e-3
+    buffer_capacity: int = 50_000
+    hidden_dim: int = 128
+    exploration_noise: float = 0.15
+
+
+RESULTS_DIR = Path("results")
+MODELS_DIR = RESULTS_DIR / "models"
+CSV_DIR = RESULTS_DIR / "csv"
+FIGURES_DIR = RESULTS_DIR / "figures"
