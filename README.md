@@ -19,6 +19,9 @@ uv run python evaluate.py
 uv run python plot_results.py
 ```
 
+Training and evaluation default to CUDA. Use `--device cpu` only when running on
+a machine without a compatible NVIDIA GPU.
+
 For a quick smoke test:
 
 ```bash
@@ -50,8 +53,17 @@ model strict enough for failed users to appear, while avoiding all-zero success
 rates in short default evaluations and preserving visible differences between
 local-only and offloading-capable policies.
 
+The environment follows the proposal model: each user observes task size,
+channel quality, distance to the base station and LEO satellite, and MEC
+resource indicators. Actions are continuous task split ratios over local
+execution, ground base-station MEC, and LEO satellite MEC. Rewards use a shared
+team cost based on average delay, average energy, and the user deadline
+violation rate.
+
 ## Scope
 
 The model intentionally uses one base station MEC server, one LEO satellite MEC
-server, and multiple users. It does not include multi-satellite routing,
-inter-satellite links, cloud centers, real ephemeris data, or cross-slot queues.
+server, and multiple users. The LEO satellite follows a simplified linear
+motion model, and the channel rate is updated from distance-based path loss. It
+does not include multi-satellite routing, inter-satellite links, cloud centers,
+real ephemeris data, or cross-slot queues.

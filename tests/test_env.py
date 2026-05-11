@@ -1,4 +1,6 @@
 import numpy as np
+import subprocess
+import sys
 
 from config import EnvConfig
 from envs.offloading_env import OffloadingEnv, StarGroundEnv, normalize_actions
@@ -94,6 +96,18 @@ def test_environment_exposes_proposal_compatible_action_helpers():
     assert np.all(random_actions >= 0.0)
     np.testing.assert_allclose(random_actions.sum(axis=1), np.ones(3), atol=1e-6)
     np.testing.assert_allclose(local_actions, np.tile(np.array([[1.0, 0.0, 0.0]]), (3, 1)))
+
+
+def test_environment_module_demo_runs_without_warnings():
+    completed = subprocess.run(
+        [sys.executable, "-m", "envs.offloading_env"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "RuntimeWarning" not in completed.stderr
+    assert "obs_shape" in completed.stdout
 
 
 def test_rewards_use_proposal_aligned_team_cost():
