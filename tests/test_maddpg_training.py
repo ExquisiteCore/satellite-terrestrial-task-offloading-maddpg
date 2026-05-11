@@ -11,6 +11,13 @@ from algorithms.maddpg.replay_buffer import MultiAgentBatch, MultiAgentReplayBuf
 from train_maddpg import train
 
 
+def test_maddpg_defaults_to_cuda():
+    maddpg = MADDPG(num_users=2, obs_dim=4, action_dim=3, hidden_dim=16, seed=9)
+
+    assert maddpg.device.type == "cuda"
+    assert all(agent.device.type == "cuda" for agent in maddpg.agents)
+
+
 def make_batch(batch_size: int = 5, num_users: int = 3, obs_dim: int = 4, action_dim: int = 3) -> MultiAgentBatch:
     rng = np.random.default_rng(123)
     raw_actions = rng.uniform(0.0, 1.0, size=(batch_size, num_users, action_dim)).astype(np.float32)
@@ -32,6 +39,7 @@ def test_maddpg_agent_initializes_identical_target_networks():
         global_obs_dim=8,
         global_action_dim=6,
         seed=5,
+        device="cpu",
     )
 
     for online_param, target_param in zip(agent.actor.parameters(), agent.target_actor.parameters()):
@@ -64,7 +72,16 @@ def test_soft_update_tau_zero_leaves_target_and_tau_one_copies_source():
 
 
 def test_maddpg_update_changes_online_parameters_and_returns_losses():
-    maddpg = MADDPG(num_users=3, obs_dim=4, action_dim=3, hidden_dim=16, seed=9, actor_lr=1e-2, critic_lr=1e-2)
+    maddpg = MADDPG(
+        num_users=3,
+        obs_dim=4,
+        action_dim=3,
+        hidden_dim=16,
+        seed=9,
+        actor_lr=1e-2,
+        critic_lr=1e-2,
+        device="cpu",
+    )
     batch = make_batch()
     actor_before = [param.detach().clone() for param in maddpg.agents[0].actor.parameters()]
     critic_before = [param.detach().clone() for param in maddpg.agents[0].critic.parameters()]
@@ -82,8 +99,8 @@ def test_maddpg_update_changes_online_parameters_and_returns_losses():
 
 def test_maddpg_act_noise_is_reproducible_for_same_seed_and_preserves_simplex():
     obs = np.zeros((3, 4), dtype=np.float32)
-    maddpg_a = MADDPG(num_users=3, obs_dim=4, action_dim=3, hidden_dim=16, seed=21)
-    maddpg_b = MADDPG(num_users=3, obs_dim=4, action_dim=3, hidden_dim=16, seed=21)
+    maddpg_a = MADDPG(num_users=3, obs_dim=4, action_dim=3, hidden_dim=16, seed=21, device="cpu")
+    maddpg_b = MADDPG(num_users=3, obs_dim=4, action_dim=3, hidden_dim=16, seed=21, device="cpu")
 
     actions_a = maddpg_a.act(obs, noise_std=0.3)
     actions_b = maddpg_b.act(obs, noise_std=0.3)
@@ -107,7 +124,7 @@ def test_multi_agent_replay_buffer_rejects_undersized_sample():
 
 
 def test_maddpg_save_contains_full_training_state():
-    maddpg = MADDPG(num_users=2, obs_dim=4, action_dim=3, hidden_dim=16, seed=10)
+    maddpg = MADDPG(num_users=2, obs_dim=4, action_dim=3, hidden_dim=16, seed=10, device="cpu")
     path = Path("maddpg_training_payload_test.pt")
 
     try:

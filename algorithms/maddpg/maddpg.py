@@ -25,7 +25,7 @@ class MADDPG:
         self.num_users = num_users
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.device = torch.device("cpu" if device is None else device)
+        self.device = torch.device("cuda" if device is None else device)
         global_obs_dim = num_users * obs_dim
         global_action_dim = num_users * action_dim
         self.agents = [

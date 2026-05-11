@@ -30,7 +30,7 @@ class MaddpgAgent:
         agent_index: int | None = None,
     ):
         torch.manual_seed(seed)
-        self.device = torch.device("cpu" if device is None else device)
+        self.device = torch.device("cuda" if device is None else device)
         self.rng = np.random.default_rng(seed)
         self.agent_index = agent_index
         if global_obs_dim is None or global_action_dim is None:

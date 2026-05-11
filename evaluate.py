@@ -72,14 +72,15 @@ def evaluate(
     load_models: bool = True,
     dqn_checkpoint: str | Path = MODELS_DIR / "dqn.pt",
     maddpg_checkpoint: str | Path = MODELS_DIR / "maddpg_best.pt",
+    device: str = "cuda",
 ) -> list[dict]:
     config = EnvConfig(seed=99)
     set_seed(config.seed)
     ensure_result_dirs()
 
     env = OffloadingEnv(config)
-    maddpg = MADDPG(num_users=env.num_users, obs_dim=env.obs_dim, action_dim=env.action_dim, seed=config.seed)
-    dqn = DQNAgent(obs_dim=env.obs_dim, seed=config.seed)
+    maddpg = MADDPG(num_users=env.num_users, obs_dim=env.obs_dim, action_dim=env.action_dim, seed=config.seed, device=device)
+    dqn = DQNAgent(obs_dim=env.obs_dim, seed=config.seed, device=device)
     dqn_status = maybe_load_model(dqn, dqn_checkpoint, load_models)
     maddpg_status = maybe_load_model(maddpg, maddpg_checkpoint, load_models)
 
@@ -108,12 +109,14 @@ def main() -> None:
     parser.add_argument("--no-load-models", action="store_true")
     parser.add_argument("--dqn-checkpoint", type=Path, default=MODELS_DIR / "dqn.pt")
     parser.add_argument("--maddpg-checkpoint", type=Path, default=MODELS_DIR / "maddpg_best.pt")
+    parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     args = parser.parse_args()
     evaluate(
         args.episodes,
         load_models=not args.no_load_models,
         dqn_checkpoint=args.dqn_checkpoint,
         maddpg_checkpoint=args.maddpg_checkpoint,
+        device=args.device,
     )
 
 

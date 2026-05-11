@@ -34,7 +34,7 @@ class DQNAgent:
         device: str | torch.device | None = None,
     ):
         torch.manual_seed(seed)
-        self.device = torch.device("cpu" if device is None else device)
+        self.device = torch.device("cuda" if device is None else device)
         self.network = DQNNetwork(obs_dim=obs_dim, num_actions=len(DISCRETE_ACTIONS), hidden_dim=hidden_dim).to(self.device)
         self.target_network = DQNNetwork(obs_dim=obs_dim, num_actions=len(DISCRETE_ACTIONS), hidden_dim=hidden_dim).to(
             self.device

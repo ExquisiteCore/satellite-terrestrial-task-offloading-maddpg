@@ -8,8 +8,14 @@ from algorithms.dqn.replay_buffer import DQNBatch, DQNReplayBuffer
 from train_dqn import store_user_transitions
 
 
-def test_dqn_agent_initializes_identical_target_network():
+def test_dqn_agent_defaults_to_cuda():
     agent = DQNAgent(obs_dim=4, hidden_dim=16, seed=7)
+
+    assert agent.device.type == "cuda"
+
+
+def test_dqn_agent_initializes_identical_target_network():
+    agent = DQNAgent(obs_dim=4, hidden_dim=16, seed=7, device="cpu")
 
     for online_param, target_param in zip(agent.network.parameters(), agent.target_network.parameters()):
         torch.testing.assert_close(online_param, target_param)
@@ -17,7 +23,7 @@ def test_dqn_agent_initializes_identical_target_network():
 
 
 def test_dqn_agent_update_changes_online_parameters_and_returns_finite_loss():
-    agent = DQNAgent(obs_dim=3, hidden_dim=8, seed=3, lr=1e-2)
+    agent = DQNAgent(obs_dim=3, hidden_dim=8, seed=3, lr=1e-2, device="cpu")
     batch = DQNBatch(
         obs=np.array(
             [
@@ -55,7 +61,7 @@ def test_dqn_agent_update_changes_online_parameters_and_returns_finite_loss():
 
 
 def test_dqn_agent_update_uses_bellman_target_with_done_mask_and_action_indices():
-    agent = DQNAgent(obs_dim=2, hidden_dim=4, seed=17, lr=0.0)
+    agent = DQNAgent(obs_dim=2, hidden_dim=4, seed=17, lr=0.0, device="cpu")
     with torch.no_grad():
         for param in agent.network.parameters():
             param.zero_()
@@ -81,7 +87,7 @@ def test_dqn_agent_update_uses_bellman_target_with_done_mask_and_action_indices(
 
 
 def test_sync_target_copies_online_parameters_to_target_network():
-    agent = DQNAgent(obs_dim=4, hidden_dim=16, seed=11)
+    agent = DQNAgent(obs_dim=4, hidden_dim=16, seed=11, device="cpu")
     with torch.no_grad():
         for param in agent.network.parameters():
             param.add_(1.0)
@@ -122,8 +128,8 @@ def test_store_user_transitions_adds_one_transition_per_user():
 
 def test_dqn_epsilon_actions_are_reproducible_for_same_seed():
     obs = np.zeros((6, 4), dtype=np.float32)
-    agent_a = DQNAgent(obs_dim=4, hidden_dim=16, seed=13)
-    agent_b = DQNAgent(obs_dim=4, hidden_dim=16, seed=13)
+    agent_a = DQNAgent(obs_dim=4, hidden_dim=16, seed=13, device="cpu")
+    agent_b = DQNAgent(obs_dim=4, hidden_dim=16, seed=13, device="cpu")
 
     _, indices_a = agent_a.act(obs, epsilon=1.0)
     _, indices_b = agent_b.act(obs, epsilon=1.0)

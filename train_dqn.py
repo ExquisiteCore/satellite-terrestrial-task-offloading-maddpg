@@ -28,14 +28,14 @@ def store_user_transitions(
         )
 
 
-def train(episodes: int) -> list[dict]:
+def train(episodes: int, device: str = "cuda") -> list[dict]:
     env_config = EnvConfig(seed=43)
     train_config = TrainConfig()
     set_seed(env_config.seed)
     ensure_result_dirs()
 
     env = OffloadingEnv(env_config)
-    agent = DQNAgent(obs_dim=env.obs_dim, hidden_dim=train_config.hidden_dim, seed=env_config.seed)
+    agent = DQNAgent(obs_dim=env.obs_dim, hidden_dim=train_config.hidden_dim, seed=env_config.seed, device=device)
     buffer = DQNReplayBuffer(capacity=train_config.buffer_capacity, obs_dim=env.obs_dim, seed=env_config.seed)
     rows: list[dict] = []
     global_step = 0
@@ -88,8 +88,9 @@ def train(episodes: int) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--episodes", type=int, default=TrainConfig().episodes)
+    parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     args = parser.parse_args()
-    train(args.episodes)
+    train(args.episodes, device=args.device)
 
 
 if __name__ == "__main__":

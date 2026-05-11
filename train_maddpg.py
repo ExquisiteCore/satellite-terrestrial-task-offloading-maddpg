@@ -10,7 +10,7 @@ from utils.logger import ensure_result_dirs, write_rows_csv
 from utils.seed import set_seed
 
 
-def train(episodes: int) -> list[dict]:
+def train(episodes: int, device: str = "cuda") -> list[dict]:
     env_config = EnvConfig()
     train_config = TrainConfig(episodes=episodes)
     set_seed(env_config.seed)
@@ -25,6 +25,7 @@ def train(episodes: int) -> list[dict]:
         seed=env_config.seed,
         actor_lr=train_config.actor_lr,
         critic_lr=train_config.critic_lr,
+        device=device,
     )
     buffer = MultiAgentReplayBuffer(
         capacity=train_config.buffer_capacity,
@@ -87,8 +88,9 @@ def train(episodes: int) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--episodes", type=int, default=TrainConfig().episodes)
+    parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     args = parser.parse_args()
-    train(args.episodes)
+    train(args.episodes, device=args.device)
 
 
 if __name__ == "__main__":

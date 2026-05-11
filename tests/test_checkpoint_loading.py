@@ -10,8 +10,8 @@ from evaluate import evaluate
 
 def test_dqn_agent_save_load_round_trip_preserves_networks_and_actions():
     obs = np.zeros((3, 4), dtype=np.float32)
-    source = DQNAgent(obs_dim=4, hidden_dim=16, seed=1)
-    target = DQNAgent(obs_dim=4, hidden_dim=16, seed=2)
+    source = DQNAgent(obs_dim=4, hidden_dim=16, seed=1, device="cpu")
+    target = DQNAgent(obs_dim=4, hidden_dim=16, seed=2, device="cpu")
     path = Path("dqn_checkpoint_test.pt")
 
     with torch.no_grad():
@@ -34,7 +34,7 @@ def test_dqn_agent_save_load_round_trip_preserves_networks_and_actions():
 
 
 def test_dqn_agent_load_rejects_missing_network_keys():
-    agent = DQNAgent(obs_dim=4, hidden_dim=16, seed=1)
+    agent = DQNAgent(obs_dim=4, hidden_dim=16, seed=1, device="cpu")
     path = Path("bad_dqn_checkpoint_test.pt")
 
     try:
@@ -51,8 +51,8 @@ def test_dqn_agent_load_rejects_missing_network_keys():
 
 def test_maddpg_save_load_round_trip_preserves_deterministic_actions():
     obs = np.zeros((2, 4), dtype=np.float32)
-    source = MADDPG(num_users=2, obs_dim=4, action_dim=3, hidden_dim=16, seed=3)
-    target = MADDPG(num_users=2, obs_dim=4, action_dim=3, hidden_dim=16, seed=4)
+    source = MADDPG(num_users=2, obs_dim=4, action_dim=3, hidden_dim=16, seed=3, device="cpu")
+    target = MADDPG(num_users=2, obs_dim=4, action_dim=3, hidden_dim=16, seed=4, device="cpu")
     path = Path("maddpg_checkpoint_test.pt")
 
     with torch.no_grad():
@@ -84,7 +84,7 @@ def test_maddpg_save_load_round_trip_preserves_deterministic_actions():
 
 
 def test_maddpg_load_rejects_mismatched_agent_lists():
-    maddpg = MADDPG(num_users=2, obs_dim=4, action_dim=3, hidden_dim=16, seed=3)
+    maddpg = MADDPG(num_users=2, obs_dim=4, action_dim=3, hidden_dim=16, seed=3, device="cpu")
     path = Path("bad_maddpg_checkpoint_test.pt")
 
     try:
@@ -108,8 +108,8 @@ def test_maddpg_load_rejects_mismatched_agent_lists():
 
 
 def test_evaluate_records_loaded_and_missing_checkpoint_status():
-    dqn = DQNAgent(obs_dim=10, hidden_dim=128, seed=10)
-    maddpg = MADDPG(num_users=6, obs_dim=10, action_dim=3, hidden_dim=128, seed=10)
+    dqn = DQNAgent(obs_dim=10, hidden_dim=128, seed=10, device="cpu")
+    maddpg = MADDPG(num_users=6, obs_dim=10, action_dim=3, hidden_dim=128, seed=10, device="cpu")
     dqn_path = Path("eval_dqn_checkpoint_test.pt")
     maddpg_path = Path("eval_maddpg_checkpoint_test.pt")
 
