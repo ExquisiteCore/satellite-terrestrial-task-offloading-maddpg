@@ -44,6 +44,43 @@ def test_environment_done_after_episode_steps():
     assert done_2 is True
 
 
+def test_reset_advances_rng_between_episodes_but_seeded_envs_match():
+    config = EnvConfig(num_users=3, seed=31)
+    env = OffloadingEnv(config)
+    first_obs = env.reset()
+    second_obs = env.reset()
+
+    env_a = OffloadingEnv(config)
+    env_b = OffloadingEnv(config)
+
+    assert not np.allclose(first_obs, second_obs)
+    np.testing.assert_allclose(env_a.reset(), env_b.reset())
+
+
+def test_reset_accepts_explicit_seed_for_exact_replay():
+    env = OffloadingEnv(EnvConfig(num_users=3, seed=37))
+    first_obs = env.reset(seed=101)
+    env.step(env.sample_random_actions())
+    replay_obs = env.reset(seed=101)
+
+    np.testing.assert_allclose(first_obs, replay_obs)
+
+
+def test_random_action_helper_does_not_advance_environment_rng():
+    config = EnvConfig(num_users=3, seed=41)
+    env_a = OffloadingEnv(config)
+    env_b = OffloadingEnv(config)
+    env_a.reset()
+    env_b.reset()
+
+    env_a.sample_random_actions()
+    fixed_actions = env_a.all_local_actions()
+    next_a, _, _, _ = env_a.step(fixed_actions)
+    next_b, _, _, _ = env_b.step(fixed_actions)
+
+    np.testing.assert_allclose(next_a, next_b)
+
+
 def test_environment_exposes_proposal_compatible_action_helpers():
     config = EnvConfig(num_users=3, seed=11)
     env = OffloadingEnv(config)
@@ -71,7 +108,7 @@ def test_rewards_use_proposal_aligned_team_cost():
     assert info["team_reward"] == info["avg_reward"]
     assert info["total_delay_cost"] >= 0.0
     assert info["total_energy_cost"] >= 0.0
-    assert info["deadline_violation"] in {0.0, 1.0}
+    assert 0.0 <= info["deadline_violation"] <= 1.0
 
 
 def test_deadline_violation_penalty_reduces_team_reward():
@@ -104,6 +141,18 @@ def test_deadline_violation_uses_current_step_deadline_before_state_advances():
     _, _, _, info = env.step(actions)
 
     assert info["deadline_violation"] == expected_violation
+
+
+def test_deadline_penalty_uses_mean_user_violation_rate():
+    env = OffloadingEnv(EnvConfig(num_users=4, seed=43))
+    env.reset()
+    actions = env.all_local_actions()
+    metrics = env._compute_metrics(actions)
+    expected_violation_rate = float(np.mean(metrics["failed"]))
+
+    _, _, _, info = env.step(actions)
+
+    assert info["deadline_violation"] == expected_violation_rate
 
 
 def test_satellite_position_distance_and_channel_change_over_steps():

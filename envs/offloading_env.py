@@ -39,6 +39,7 @@ class OffloadingEnv:
     def __init__(self, config: EnvConfig | None = None):
         self.config = config or EnvConfig()
         self.rng = np.random.default_rng(self.config.seed)
+        self.action_rng = np.random.default_rng(self.config.seed + 10_000)
         self.step_count = 0
         self.state: dict[str, np.ndarray] = {}
 
@@ -46,14 +47,16 @@ class OffloadingEnv:
     def num_users(self) -> int:
         return self.config.num_users
 
-    def reset(self) -> np.ndarray:
-        self.rng = np.random.default_rng(self.config.seed)
+    def reset(self, seed: int | None = None) -> np.ndarray:
+        if seed is not None:
+            self.rng = np.random.default_rng(seed)
+            self.action_rng = np.random.default_rng(seed + 10_000)
         self.step_count = 0
         self._sample_state()
         return self._get_obs()
 
     def sample_random_actions(self) -> np.ndarray:
-        return self.rng.dirichlet(alpha=np.ones(self.action_dim), size=self.num_users).astype(np.float32)
+        return self.action_rng.dirichlet(alpha=np.ones(self.action_dim), size=self.num_users).astype(np.float32)
 
     def all_local_actions(self) -> np.ndarray:
         actions = np.zeros((self.num_users, self.action_dim), dtype=np.float32)
@@ -69,14 +72,13 @@ class OffloadingEnv:
             raise ValueError(f"expected {self.num_users} user actions, got {split.shape[0]}")
 
         metrics = self._compute_metrics(split)
-        deadline_threshold = float(np.mean(self.state["deadline_s"]))
         self.step_count += 1
         done = self.step_count >= self.config.episode_steps
         self._advance_state()
 
         total_delay_cost = float(np.mean(metrics["delay"]))
         total_energy_cost = float(np.mean(metrics["energy"]))
-        deadline_violation = float(total_delay_cost > deadline_threshold)
+        deadline_violation = float(np.mean(metrics["failed"]))
         team_reward = -(
             self.config.reward_delay_weight * total_delay_cost
             + self.config.reward_energy_weight * total_energy_cost
