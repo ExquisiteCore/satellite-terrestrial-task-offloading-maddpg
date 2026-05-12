@@ -12,7 +12,7 @@ __pycache__/
 .ruff_cache/
 
 # Generated experiment outputs
-results/
+results/*
 *.pt
 *.pth
 *.onnx
@@ -21,6 +21,11 @@ results/
 *.jpeg
 *.svg
 *.csv
+
+# Keep generated figures visible in the GitHub README.
+!results/
+!results/figures/
+!results/figures/*.png
 
 # Local document/source materials
 docs/
