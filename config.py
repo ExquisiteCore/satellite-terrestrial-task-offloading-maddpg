@@ -19,6 +19,9 @@ class EnvConfig:
     local_freq_max_ghz: float = 1.5
     bs_freq_ghz: float = 12.0
     sat_freq_ghz: float = 8.0
+    bs_capacity_cycles_per_slot: float = 45.0e9
+    sat_capacity_cycles_per_slot: float = 45.0e9
+    mec_overload_penalty: float = 3.0
 
     bs_distance_min_m: float = 100.0
     bs_distance_max_m: float = 1000.0
@@ -31,7 +34,7 @@ class EnvConfig:
     sat_initial_x_m: float = -1_000_000.0
     sat_velocity_mps: float = 7_500.0
     slot_duration_s: float = 1.0
-    reference_channel_gain: float = 1e-3
+    reference_channel_gain: float = 1e-2
     bs_path_loss_exponent: float = 2.2
     sat_path_loss_exponent: float = 2.0
     light_speed_mps: float = 3.0e8

@@ -170,8 +170,10 @@ class OffloadingEnv:
         bs_freq = np.zeros(self.num_users)
         if bs_total > 0.0:
             bs_freq = (bs_cycles / bs_total) * cfg.bs_freq_ghz * 1.0e9
+        bs_overload_factor = max(0.0, bs_total / cfg.bs_capacity_cycles_per_slot - 1.0)
         bs_tx_delay = split[:, 1] * data_bits / self.state["bs_rate_bps"]
         bs_compute_delay = np.divide(bs_cycles, bs_freq, out=np.zeros_like(bs_cycles), where=bs_freq > 0.0)
+        bs_compute_delay *= 1.0 + cfg.mec_overload_penalty * bs_overload_factor
         bs_delay = bs_tx_delay + bs_compute_delay
         bs_energy = cfg.transmit_energy_coeff * cfg.tx_power_w * bs_tx_delay
 
@@ -179,6 +181,7 @@ class OffloadingEnv:
         sat_freq = np.zeros(self.num_users)
         if sat_total > 0.0:
             sat_freq = (sat_cycles / sat_total) * cfg.sat_freq_ghz * 1.0e9
+        sat_overload_factor = max(0.0, sat_total / cfg.sat_capacity_cycles_per_slot - 1.0)
         sat_tx_delay = split[:, 2] * data_bits / self.state["sat_rate_bps"]
         sat_propagation_delay = np.where(
             split[:, 2] > 0.0,
@@ -186,6 +189,7 @@ class OffloadingEnv:
             0.0,
         )
         sat_compute_delay = np.divide(sat_cycles, sat_freq, out=np.zeros_like(sat_cycles), where=sat_freq > 0.0)
+        sat_compute_delay *= 1.0 + cfg.mec_overload_penalty * sat_overload_factor
         sat_delay = sat_tx_delay + sat_propagation_delay + sat_compute_delay
         sat_energy = cfg.transmit_energy_coeff * cfg.tx_power_w * sat_tx_delay
 
@@ -200,6 +204,8 @@ class OffloadingEnv:
             "bs_delay": bs_delay,
             "sat_delay": sat_delay,
             "sat_propagation_delay": sat_propagation_delay,
+            "bs_overload_factor": np.full(self.num_users, bs_overload_factor),
+            "sat_overload_factor": np.full(self.num_users, sat_overload_factor),
         }
 
     def _get_obs(self) -> np.ndarray:

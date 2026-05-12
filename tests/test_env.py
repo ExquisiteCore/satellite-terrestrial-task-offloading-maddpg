@@ -2,6 +2,7 @@ import numpy as np
 import subprocess
 import sys
 
+from algorithms.dqn.dqn_agent import DISCRETE_ACTIONS
 from config import EnvConfig
 from envs.offloading_env import OffloadingEnv, StarGroundEnv, normalize_actions
 
@@ -195,3 +196,23 @@ def test_satellite_delay_includes_propagation_delay():
     assert "sat_propagation_delay" in metrics
     np.testing.assert_allclose(metrics["sat_propagation_delay"], propagation_delay)
     assert np.all(metrics["sat_delay"] >= propagation_delay)
+
+
+def test_continuous_split_can_outperform_best_discrete_dqn_action_under_mec_overload():
+    config = EnvConfig(num_users=6, seed=53)
+    env = OffloadingEnv(config)
+    env.reset()
+    discrete_delays = [
+        float(np.mean(env._compute_metrics(np.tile(action, (env.num_users, 1)))["delay"]))
+        for action in DISCRETE_ACTIONS
+    ]
+    continuous_delays = []
+    for local_ratio in np.linspace(0.35, 0.60, 6):
+        for bs_ratio in np.linspace(0.30, 0.55, 6):
+            sat_ratio = 1.0 - local_ratio - bs_ratio
+            if sat_ratio < 0.0:
+                continue
+            split = np.tile(np.array([[local_ratio, bs_ratio, sat_ratio]]), (env.num_users, 1))
+            continuous_delays.append(float(np.mean(env._compute_metrics(split)["delay"])))
+
+    assert min(continuous_delays) < min(discrete_delays)
