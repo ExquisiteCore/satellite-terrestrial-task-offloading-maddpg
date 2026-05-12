@@ -51,44 +51,20 @@ uv run python plot_results.py
 
 ## 实验图表
 
-> 下列图片由 `uv run python plot_results.py` 生成，路径位于 `results/figures/`。
-> 该目录被 git 忽略，重新运行实验后会自动刷新。
+图表由 `uv run python plot_results.py` 生成到 `results/figures/`。该目录属于本地
+实验输出，已在 `.gitignore` 中忽略，不随 Git 仓库提交。
 
-### 训练奖励曲线
+会生成的图表包括：
 
-![训练奖励曲线](results/figures/reward_curve.png)
-
-### 平均奖励对比
-
-![平均奖励对比](results/figures/avg_reward_comparison.png)
-
-### 平均时延对比
-
-![平均时延对比](results/figures/avg_delay_comparison.png)
-
-### 平均能耗对比
-
-![平均能耗对比](results/figures/avg_energy_comparison.png)
-
-### 任务成功率对比
-
-![任务成功率对比](results/figures/success_rate_comparison.png)
-
-### MADDPG 卸载比例
-
-![MADDPG 卸载比例](results/figures/offload_ratio_maddpg.png)
-
-### 任务完成情况统计
-
-![任务完成情况统计](results/figures/task_completion_summary.png)
-
-### 收益用户比例对比
-
-![收益用户比例对比](results/figures/benefit_user_ratio_comparison.png)
-
-### 任务负载敏感性分析
-
-![任务负载敏感性分析](results/figures/task_load_sensitivity.png)
+- 训练奖励曲线
+- 平均奖励对比
+- 平均时延对比
+- 平均能耗对比
+- 任务成功率对比
+- MADDPG 卸载比例
+- 任务完成情况统计
+- 收益用户比例对比
+- 任务负载敏感性分析
 
 ## 输出文件
 
