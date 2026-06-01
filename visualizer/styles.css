@@ -59,6 +59,10 @@ select {
   border-radius: 8px 8px 0 0;
 }
 
+.topbar > div:first-child {
+  min-width: 0;
+}
+
 .eyebrow {
   margin: 0 0 4px;
   color: var(--muted);
@@ -74,6 +78,8 @@ h2 {
 
 h1 {
   font-size: 24px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 h2 {
@@ -82,6 +88,7 @@ h2 {
 
 .trace-loader {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 12px;
   color: var(--muted);
@@ -113,7 +120,7 @@ h2 {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) auto minmax(260px, 520px) auto;
+  grid-template-columns: minmax(360px, 1fr) auto minmax(260px, 520px) auto;
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
@@ -124,6 +131,7 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .policy-tabs button {
@@ -396,6 +404,11 @@ th {
   .dashboard {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .trace-loader {
+    justify-content: start;
+    flex-wrap: wrap;
   }
 
   .scene-panel {

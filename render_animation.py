@@ -96,7 +96,14 @@ def annotate_radial(ax: Axes, x: float, y: float, label: str, fontsize: int = 8)
     ax.text(label_x, label_y, label, color=COLORS["text"], fontsize=fontsize, va="center", ha=ha)
 
 
-def draw_policy_step(ax: Axes, trace: dict[str, Any], policy_name: str, frame_index: int, extent: float) -> None:
+def draw_policy_step(
+    ax: Axes,
+    trace: dict[str, Any],
+    policy_name: str,
+    frame_index: int,
+    extent: float,
+    show_policy_title: bool = True,
+) -> None:
     steps = trace["policies"][policy_name]["steps"]
     step = steps[min(frame_index, len(steps) - 1)]
     orbit = step["orbit_view"]
@@ -108,7 +115,7 @@ def draw_policy_step(ax: Axes, trace: dict[str, Any], policy_name: str, frame_in
     ax.set_facecolor("#f8fbfe")
     ax.grid(True, color=COLORS["grid"], linewidth=0.7, alpha=0.7)
     ax.tick_params(labelsize=8, colors=COLORS["muted"])
-    ax.set_title(policy_name, fontsize=12, color=COLORS["text"], pad=8)
+    ax.set_title(policy_name if show_policy_title else "", fontsize=12, color=COLORS["text"], pad=8)
     ax.set_xticks([])
     ax.set_yticks([])
 
@@ -207,21 +214,27 @@ def render_animation(
     max_frames = max(len(trace["policies"][name]["steps"]) for name in policies)
     extent = orbit_extent(trace, policies)
 
-    if len(policies) == 1:
+    single_policy = len(policies) == 1
+    if single_policy:
         fig, axes = plt.subplots(1, 1, figsize=(8, 5.6))
         axes_list = [axes]
     else:
         fig, axes_grid = plt.subplots(2, 2, figsize=(11, 8.5))
         axes_list = list(axes_grid.flat)
     fig.patch.set_facecolor("white")
-    fig.subplots_adjust(left=0.05, right=0.98, top=0.94, bottom=0.06, hspace=0.22, wspace=0.16)
+    fig.subplots_adjust(left=0.05, right=0.98, top=0.88, bottom=0.06, hspace=0.28, wspace=0.16)
 
     def update(frame_index: int):
         for ax, policy_name in zip(axes_list, policies):
-            draw_policy_step(ax, trace, policy_name, frame_index, extent)
+            draw_policy_step(ax, trace, policy_name, frame_index, extent, show_policy_title=not single_policy)
         for ax in axes_list[len(policies) :]:
             ax.axis("off")
-        fig.suptitle("Satellite-Terrestrial Task Offloading Rollout", fontsize=14, color=COLORS["text"])
+        title = (
+            f"{policies[0]} Orbital Task Offloading Rollout"
+            if single_policy
+            else "Satellite-Terrestrial Task Offloading Rollout"
+        )
+        fig.suptitle(title, fontsize=14, color=COLORS["text"], y=0.965)
         return axes_list
 
     anim = animation.FuncAnimation(fig, update, frames=max_frames, interval=1000 / fps, blit=False)
