@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import CSV_DIR, FIGURES_DIR, MODELS_DIR
+from config import CSV_DIR, FIGURES_DIR, MODELS_DIR, VISUALIZATION_DIR
 
 
 def ensure_result_dirs() -> None:
-    for path in (MODELS_DIR, CSV_DIR, FIGURES_DIR):
+    for path in (MODELS_DIR, CSV_DIR, FIGURES_DIR, VISUALIZATION_DIR):
         path.mkdir(parents=True, exist_ok=True)
 
 
