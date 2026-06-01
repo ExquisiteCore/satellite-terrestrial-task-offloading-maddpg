@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>星地协同任务卸载可视化</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Satellite-Terrestrial MEC</p>
+          <h1>星地协同任务卸载仿真</h1>
+        </div>
+        <div class="trace-loader">
+          <span id="traceStatus">正在加载默认轨迹</span>
+          <label class="file-button">
+            选择 JSON
+            <input id="traceFile" type="file" accept="application/json,.json" />
+          </label>
+        </div>
+      </header>
+
+      <section class="toolbar" aria-label="仿真控制">
+        <div id="policyTabs" class="policy-tabs"></div>
+        <button id="playButton" class="icon-button" type="button" aria-label="播放或暂停">▶</button>
+        <label class="step-control">
+          <span>Step <strong id="stepLabel">0</strong></span>
+          <input id="stepSlider" type="range" min="0" max="0" value="0" />
+        </label>
+        <label class="speed-control">
+          <span>速度</span>
+          <select id="speedSelect">
+            <option value="1200">0.5x</option>
+            <option value="700" selected>1x</option>
+            <option value="350">2x</option>
+            <option value="180">4x</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="dashboard">
+        <div class="scene-panel">
+          <canvas id="sceneCanvas" width="960" height="640" aria-label="星地协同仿真场景"></canvas>
+          <div class="legend">
+            <span><i class="dot user"></i>用户</span>
+            <span><i class="dot bs"></i>地面基站 MEC</span>
+            <span><i class="dot sat"></i>低轨卫星 MEC</span>
+            <span><i class="line bs-line"></i>基站卸载</span>
+            <span><i class="line sat-line"></i>卫星卸载</span>
+          </div>
+        </div>
+
+        <aside class="side-panel">
+          <section>
+            <h2>当前指标</h2>
+            <div id="metricGrid" class="metric-grid"></div>
+          </section>
+          <section>
+            <h2>平均卸载比例</h2>
+            <div class="ratio-stack" aria-label="平均卸载比例">
+              <div id="avgLocalBar" class="ratio-segment local"></div>
+              <div id="avgBsBar" class="ratio-segment bs"></div>
+              <div id="avgSatBar" class="ratio-segment sat"></div>
+            </div>
+            <div id="ratioLabels" class="ratio-labels"></div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="table-panel">
+        <div class="section-heading">
+          <h2>用户任务与决策</h2>
+          <span id="policySummary"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>用户</th>
+                <th>任务 MB</th>
+                <th>截止 s</th>
+                <th>时延 s</th>
+                <th>能耗 J</th>
+                <th>决策比例</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody id="userTable"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

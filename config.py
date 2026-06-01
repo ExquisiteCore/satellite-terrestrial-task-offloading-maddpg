@@ -68,3 +68,4 @@ RESULTS_DIR = Path("results")
 MODELS_DIR = RESULTS_DIR / "models"
 CSV_DIR = RESULTS_DIR / "csv"
 FIGURES_DIR = RESULTS_DIR / "figures"
+VISUALIZATION_DIR = RESULTS_DIR / "visualization"

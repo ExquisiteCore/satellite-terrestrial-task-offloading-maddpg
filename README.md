@@ -22,6 +22,16 @@ uv run python evaluate.py --episodes 3
 uv run python plot_results.py
 ```
 
+生成仿真可视化轨迹并打开交互式页面：
+
+```bash
+uv run python visualize_rollout.py --steps 50 --device cpu
+uv run python -m http.server 8765
+```
+
+然后在浏览器中访问 `http://127.0.0.1:8765/visualizer/`。页面支持 MADDPG、
+DQN、Random 和 All Local 策略切换、播放/暂停、时间步拖动和用户级卸载比例查看。
+
 ## 正式实验
 
 ```bash
@@ -29,6 +39,13 @@ uv run python train_maddpg.py --episodes 500
 uv run python train_dqn.py --episodes 500
 uv run python evaluate.py --episodes 100 --sensitivity
 uv run python plot_results.py
+```
+
+导出论文或答辩可用动画：
+
+```bash
+uv run python render_animation.py --policy MADDPG --format gif
+uv run python render_animation.py --policy all --format gif
 ```
 
 正式实验会生成模型权重、训练日志、评估表格和图像。`results/` 目录属于实验
