@@ -29,8 +29,10 @@ uv run python visualize_rollout.py --steps 50 --device cpu
 uv run python -m http.server 8765
 ```
 
-然后在浏览器中访问 `http://127.0.0.1:8765/visualizer/`。页面支持 MADDPG、
-DQN、Random 和 All Local 策略切换、播放/暂停、时间步拖动和用户级卸载比例查看。
+然后在浏览器中访问 `http://127.0.0.1:8765/visualizer/`。页面以地球轨道视图展示
+低轨卫星绕地球运动，并支持 MADDPG、DQN、Random 和 All Local 策略切换、播放/暂停、
+时间步拖动和用户级卸载比例查看。轨道画面用于直观展示，链路距离、时延、能耗等指标
+仍由仿真器中的简化星地距离模型计算。
 
 ## 正式实验
 

@@ -44,6 +44,7 @@
         <div class="scene-panel">
           <canvas id="sceneCanvas" width="960" height="640" aria-label="星地协同仿真场景"></canvas>
           <div class="legend">
+            <span><i class="dot earth"></i>地球</span>
             <span><i class="dot user"></i>用户</span>
             <span><i class="dot bs"></i>地面基站 MEC</span>
             <span><i class="dot sat"></i>低轨卫星 MEC</span>
@@ -65,6 +66,10 @@
               <div id="avgSatBar" class="ratio-segment sat"></div>
             </div>
             <div id="ratioLabels" class="ratio-labels"></div>
+          </section>
+          <section>
+            <h2>轨道说明</h2>
+            <div id="orbitDetails" class="orbit-details"></div>
           </section>
         </aside>
       </section>
