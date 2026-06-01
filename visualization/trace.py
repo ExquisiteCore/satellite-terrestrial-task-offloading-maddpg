@@ -17,6 +17,7 @@ from evaluate import maybe_load_model
 
 
 DEFAULT_POLICY_NAMES = ("MADDPG", "DQN", "Random", "All Local")
+EARTH_RADIUS_KM = 6371.0
 Policy = Callable[[np.ndarray, int], np.ndarray]
 
 
@@ -26,6 +27,65 @@ def _to_float(value: Any) -> float:
 
 def _to_bool(value: Any) -> bool:
     return bool(np.asarray(value).item())
+
+
+def _surface_angle_from_xy(x_m: float, y_m: float) -> float:
+    angle = float(np.arctan2(y_m, x_m))
+    if angle < 0.0:
+        angle += float(2.0 * np.pi)
+    return angle
+
+
+def _unit_point(angle_rad: float, radius_scale: float = 1.0) -> dict[str, float]:
+    return {
+        "x_norm": float(np.cos(angle_rad) * radius_scale),
+        "y_norm": float(np.sin(angle_rad) * radius_scale),
+    }
+
+
+def _satellite_orbit_angle(env: OffloadingEnv, step: int) -> float:
+    total_steps = max(1, env.config.episode_steps)
+    initial_angle = -0.55 * np.pi
+    presentation_sweep = 2.0 * np.pi
+    return float((initial_angle + presentation_sweep * step / total_steps) % (2.0 * np.pi))
+
+
+def _orbit_view(env: OffloadingEnv, step: int) -> dict[str, Any]:
+    cfg = env.config
+    orbit_radius_km = EARTH_RADIUS_KM + cfg.sat_altitude_m / 1000.0
+    orbit_scale = orbit_radius_km / EARTH_RADIUS_KM
+    sat_angle = _satellite_orbit_angle(env, step)
+    satellite = {
+        **_unit_point(sat_angle, orbit_scale),
+        "orbit_angle_rad": sat_angle,
+        "altitude_km": float(cfg.sat_altitude_m / 1000.0),
+        "orbit_radius_norm": float(orbit_scale),
+    }
+    bs_angle = _surface_angle_from_xy(cfg.bs_position_x_m, cfg.bs_position_y_m)
+    users = []
+    for user_idx in range(env.num_users):
+        angle = _surface_angle_from_xy(
+            _to_float(env.state["user_xy_m"][user_idx, 0]),
+            _to_float(env.state["user_xy_m"][user_idx, 1]),
+        )
+        users.append(
+            {
+                "id": user_idx,
+                "surface_angle_rad": angle,
+                **_unit_point(angle, 1.0),
+            }
+        )
+    return {
+        "earth_radius_km": EARTH_RADIUS_KM,
+        "orbit_radius_km": float(orbit_radius_km),
+        "model_note": "简化轨道展示视图：卫星动画按一轮仿真展示完整绕行，通信指标仍使用仿真器距离模型计算。",
+        "satellite": satellite,
+        "base_station": {
+            "surface_angle_rad": bs_angle,
+            **_unit_point(bs_angle, 1.0),
+        },
+        "users": users,
+    }
 
 
 def _policy_map(
@@ -101,6 +161,7 @@ def _record_step(
             "ground_x_m": _to_float(env.state["sat_position_m"][0]),
             "ground_y_m": _to_float(env.state["sat_position_m"][1]),
         },
+        "orbit_view": _orbit_view(env, step),
         "metrics": {
             "avg_delay": float(info["avg_delay"]),
             "avg_energy": float(info["avg_energy"]),

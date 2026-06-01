@@ -30,6 +30,7 @@ def test_generate_rollout_trace_records_user_actions_and_metrics():
     )
     assert "base_station" in step
     assert "satellite" in step
+    assert "orbit_view" in step
     assert len(step["users"]) == trace["config"]["num_users"]
 
     for user in step["users"]:
@@ -53,6 +54,48 @@ def test_generate_rollout_trace_records_user_actions_and_metrics():
                 "success",
             }
         )
+
+
+def test_rollout_trace_includes_orbit_view_coordinates_and_note():
+    trace = generate_rollout_trace(steps=4, seed=123, load_models=False, device="cpu")
+    step = trace["policies"]["MADDPG"]["steps"][0]
+
+    assert step["orbit_view"]["earth_radius_km"] > 0.0
+    assert step["orbit_view"]["orbit_radius_km"] > step["orbit_view"]["earth_radius_km"]
+    assert "简化轨道展示" in step["orbit_view"]["model_note"]
+    orbit_radius_norm = step["orbit_view"]["satellite"]["orbit_radius_norm"]
+    assert orbit_radius_norm > 1.0
+    assert -orbit_radius_norm <= step["orbit_view"]["satellite"]["x_norm"] <= orbit_radius_norm
+    assert -orbit_radius_norm <= step["orbit_view"]["satellite"]["y_norm"] <= orbit_radius_norm
+    assert len(step["orbit_view"]["users"]) == trace["config"]["num_users"]
+    for user in step["orbit_view"]["users"]:
+        assert -1.0 <= user["x_norm"] <= 1.0
+        assert -1.0 <= user["y_norm"] <= 1.0
+        assert 0.0 <= user["surface_angle_rad"] <= 2.0 * np.pi
+
+
+def test_orbit_view_satellite_moves_over_steps():
+    trace = generate_rollout_trace(steps=4, seed=123, load_models=False, device="cpu")
+    steps = trace["policies"]["MADDPG"]["steps"]
+    positions = [
+        (
+            round(step["orbit_view"]["satellite"]["x_norm"], 6),
+            round(step["orbit_view"]["satellite"]["y_norm"], 6),
+        )
+        for step in steps
+    ]
+
+    assert len(set(positions)) > 1
+
+
+def test_orbit_view_covers_most_of_a_circle_for_presentation():
+    trace = generate_rollout_trace(steps=50, seed=123, load_models=False, device="cpu")
+    steps = trace["policies"]["MADDPG"]["steps"]
+    first_angle = steps[0]["orbit_view"]["satellite"]["orbit_angle_rad"]
+    last_angle = steps[-1]["orbit_view"]["satellite"]["orbit_angle_rad"]
+    sweep = (last_angle - first_angle) % (2.0 * np.pi)
+
+    assert sweep >= 5.2
 
 
 def test_default_policy_traces_share_initial_geometry_for_comparison():

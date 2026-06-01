@@ -5,6 +5,10 @@ const COLORS = {
   sat: "#5b6fb5",
   user: "#17885b",
   failed: "#bc3b3b",
+  earth: "#1d5f8f",
+  earthDark: "#123f64",
+  land: "#2b8c67",
+  orbit: "#9fb3c8",
   text: "#172033",
   muted: "#637083",
   grid: "#d8e1ec",
@@ -30,6 +34,7 @@ const userTable = document.getElementById("userTable");
 const traceStatus = document.getElementById("traceStatus");
 const traceFile = document.getElementById("traceFile");
 const policySummary = document.getElementById("policySummary");
+const orbitDetails = document.getElementById("orbitDetails");
 
 function fmt(value, digits = 2) {
   if (!Number.isFinite(value)) return "-";
@@ -61,28 +66,6 @@ function setCanvasResolution() {
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 }
 
-function sceneBounds(step) {
-  const cfg = state.trace.config;
-  const xs = step.users.map((user) => user.x_m);
-  const ys = step.users.map((user) => user.y_m);
-  xs.push(step.base_station.x_m, step.satellite.ground_x_m);
-  ys.push(step.base_station.y_m, step.satellite.ground_y_m);
-  const padding = cfg.area_size_m * 0.25;
-  return {
-    minX: Math.min(-cfg.area_size_m / 2, ...xs) - padding,
-    maxX: Math.max(cfg.area_size_m / 2, ...xs) + padding,
-    minY: Math.min(-cfg.area_size_m / 2, ...ys) - padding,
-    maxY: Math.max(cfg.area_size_m / 2, ...ys) + padding,
-  };
-}
-
-function project(point, bounds, width, height) {
-  const margin = 42;
-  const x = margin + ((point.x - bounds.minX) / (bounds.maxX - bounds.minX)) * (width - margin * 2);
-  const y = height - margin - ((point.y - bounds.minY) / (bounds.maxY - bounds.minY)) * (height - margin * 2);
-  return { x, y };
-}
-
 function drawGrid(width, height) {
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = "#f8fbfe";
@@ -101,6 +84,78 @@ function drawGrid(width, height) {
     ctx.lineTo(width, y);
     ctx.stroke();
   }
+}
+
+function orbitProject(point, center, earthRadius) {
+  return {
+    x: center.x + point.x_norm * earthRadius,
+    y: center.y - point.y_norm * earthRadius,
+  };
+}
+
+function drawEarth(center, radius) {
+  const gradient = ctx.createRadialGradient(
+    center.x - radius * 0.35,
+    center.y - radius * 0.45,
+    radius * 0.15,
+    center.x,
+    center.y,
+    radius,
+  );
+  gradient.addColorStop(0, "#3ea6d8");
+  gradient.addColorStop(0.55, COLORS.earth);
+  gradient.addColorStop(1, COLORS.earthDark);
+  ctx.save();
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#ffffff";
+  ctx.globalAlpha = 0.95;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = COLORS.land;
+  [
+    [-0.35, -0.28, 0.28, 0.14],
+    [0.18, -0.1, 0.32, 0.18],
+    [-0.08, 0.28, 0.34, 0.13],
+  ].forEach(([x, y, rx, ry]) => {
+    ctx.beginPath();
+    ctx.ellipse(center.x + x * radius, center.y + y * radius, rx * radius, ry * radius, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.globalAlpha = 0.22;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 1;
+  for (let i = -2; i <= 2; i += 1) {
+    ctx.beginPath();
+    ctx.ellipse(center.x, center.y, radius, radius * (0.22 + Math.abs(i) * 0.17), 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawOrbit(center, earthRadius, orbitRadius) {
+  ctx.save();
+  ctx.strokeStyle = COLORS.orbit;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 8]);
+  ctx.globalAlpha = 0.85;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, orbitRadius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawOrbitLabel(text, x, y) {
+  ctx.save();
+  ctx.fillStyle = COLORS.text;
+  ctx.font = "12px Microsoft YaHei, Segoe UI, sans-serif";
+  ctx.fillText(text, x, y);
+  ctx.restore();
 }
 
 function drawLink(from, to, color, ratio) {
@@ -132,6 +187,29 @@ function drawNode(point, radius, color, label) {
   ctx.restore();
 }
 
+function drawOrbitNode(point, center, radius, color, label) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  const dx = point.x - center.x;
+  const dy = point.y - center.y;
+  const length = Math.max(1, Math.hypot(dx, dy));
+  const labelX = point.x + (dx / length) * (radius + 12);
+  const labelY = point.y + (dy / length) * (radius + 12);
+  ctx.fillStyle = COLORS.text;
+  ctx.font = "12px Microsoft YaHei, Segoe UI, sans-serif";
+  ctx.textAlign = dx >= 0 ? "left" : "right";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, labelX, labelY);
+  ctx.restore();
+}
+
 function drawScene() {
   if (!state.trace) return;
   setCanvasResolution();
@@ -139,50 +217,46 @@ function drawScene() {
   const width = rect.width;
   const height = rect.height;
   const step = activeStep();
-  const bounds = sceneBounds(step);
-  const bsPoint = project({ x: step.base_station.x_m, y: step.base_station.y_m }, bounds, width, height);
-  const satPoint = project({ x: step.satellite.ground_x_m, y: step.satellite.ground_y_m }, bounds, width, height);
+  const orbit = step.orbit_view;
+  const center = { x: width * 0.48, y: height * 0.52 };
+  const orbitScale = orbit.orbit_radius_km / orbit.earth_radius_km;
+  const earthRadius = Math.min(width, height) / (orbitScale * 2 + 0.9);
+  const orbitRadius = earthRadius * orbitScale;
+  const bsPoint = orbitProject(orbit.base_station, center, earthRadius);
+  const satPoint = orbitProject(orbit.satellite, center, earthRadius);
+  const orbitUsers = new Map(orbit.users.map((user) => [user.id, user]));
 
   drawGrid(width, height);
-
-  const policyTrace = activePolicyTrace();
-  ctx.save();
-  ctx.strokeStyle = COLORS.sat;
-  ctx.globalAlpha = 0.35;
-  ctx.lineWidth = 2;
-  ctx.setLineDash([6, 6]);
-  ctx.beginPath();
-  policyTrace.steps.forEach((traceStep, index) => {
-    const point = project(
-      { x: traceStep.satellite.ground_x_m, y: traceStep.satellite.ground_y_m },
-      bounds,
-      width,
-      height,
-    );
-    if (index === 0) ctx.moveTo(point.x, point.y);
-    else ctx.lineTo(point.x, point.y);
-  });
-  ctx.stroke();
-  ctx.restore();
+  drawOrbit(center, earthRadius, orbitRadius);
+  drawEarth(center, earthRadius);
 
   step.users.forEach((user) => {
-    const userPoint = project({ x: user.x_m, y: user.y_m }, bounds, width, height);
+    const orbitUser = orbitUsers.get(user.id);
+    const userPoint = orbitProject(orbitUser, center, earthRadius);
     drawLink(userPoint, bsPoint, COLORS.bs, user.action[1]);
     drawLink(userPoint, satPoint, COLORS.sat, user.action[2]);
   });
 
-  drawNode(bsPoint, 12, COLORS.bs, "BS MEC");
-  drawNode(satPoint, 13, COLORS.sat, "LEO MEC");
+  drawOrbitNode(bsPoint, center, 12, COLORS.bs, "BS MEC");
+  drawOrbitNode(satPoint, center, 13, COLORS.sat, "LEO MEC");
 
   step.users.forEach((user) => {
-    const userPoint = project({ x: user.x_m, y: user.y_m }, bounds, width, height);
-    drawNode(userPoint, 8 + user.task_data_mb * 0.8, user.success ? COLORS.user : COLORS.failed, `U${user.id + 1}`);
+    const orbitUser = orbitUsers.get(user.id);
+    const userPoint = orbitProject(orbitUser, center, earthRadius);
+    drawOrbitNode(
+      userPoint,
+      center,
+      8 + user.task_data_mb * 0.8,
+      user.success ? COLORS.user : COLORS.failed,
+      `U${user.id + 1}`,
+    );
   });
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = "12px Microsoft YaHei, Segoe UI, sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(`卫星高度 ${Math.round(step.satellite.z_m / 1000)} km`, 16, height - 18);
+  drawOrbitLabel(`演示轨道视图：卫星高度 ${Math.round(orbit.satellite.altitude_km)} km`, 16, height - 34);
+  drawOrbitLabel("动画按一轮仿真展示完整绕行；链路和指标仍来自原仿真模型", 16, height - 16);
 }
 
 function renderPolicyTabs() {
@@ -224,6 +298,22 @@ function renderMetrics() {
     <span>本地计算 ${pct(local)}</span>
     <span>地面基站 MEC ${pct(bs)}</span>
     <span>低轨卫星 MEC ${pct(sat)}</span>
+  `;
+  renderOrbitDetails(step);
+}
+
+function renderOrbitDetails(step) {
+  const orbit = step.orbit_view;
+  const avgSatDistanceKm =
+    step.users.reduce((total, user) => total + user.sat_distance_m / 1000, 0) / Math.max(1, step.users.length);
+  const maxSatRatioUser = step.users.reduce((best, user) => (user.action[2] > best.action[2] ? user : best), step.users[0]);
+  orbitDetails.innerHTML = `
+    <span><strong>地球半径：</strong>${fmt(orbit.earth_radius_km, 0)} km</span>
+    <span><strong>轨道半径：</strong>${fmt(orbit.orbit_radius_km, 0)} km</span>
+    <span><strong>卫星高度：</strong>${fmt(orbit.satellite.altitude_km, 0)} km</span>
+    <span><strong>平均星地距离：</strong>${fmt(avgSatDistanceKm, 1)} km</span>
+    <span><strong>卫星卸载最高用户：</strong>U${maxSatRatioUser.id + 1}，${pct(maxSatRatioUser.action[2])}</span>
+    <span>${orbit.model_note}</span>
   `;
 }
 

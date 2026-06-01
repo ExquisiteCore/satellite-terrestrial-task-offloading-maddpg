@@ -11,6 +11,8 @@
   --sat: #5b6fb5;
   --ok: #17885b;
   --bad: #bc3b3b;
+  --earth: #1d5f8f;
+  --earth-dark: #123f64;
 }
 
 * {
@@ -209,6 +211,10 @@ canvas {
   background: var(--ok);
 }
 
+.dot.earth {
+  background: var(--earth);
+}
+
 .dot.bs {
   background: var(--bs);
 }
@@ -289,6 +295,19 @@ canvas {
   gap: 5px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.orbit-details {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.orbit-details strong {
+  color: var(--text);
 }
 
 .table-panel {
